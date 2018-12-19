@@ -1,0 +1,104 @@
+# -*- coding: utf-8 -*-
+"""
+Created on Sun Dec  9 15:59:32 2018
+
+@author: ygton
+"""
+ 
+import tensorflow as tf
+import tensorflow.contrib.seq2seq as seq2seq
+from tensorflow.python.layers.core import Dense
+import numpy as np
+import os
+import csv
+import re
+
+max_length = 40
+max_sentences = 1500
+
+train_sen = []
+
+
+#Open train file and test file, extracting parts of them to value
+tr_f = open('train.de.txt', encoding = 'utf-8')
+
+for leng, line in enumerate(tr_f):
+    if leng < 40:
+        continue
+    
+    train_sen.append(line)
+    if len(train_sen) >= max_sentences:
+        break
+    
+print(train_sen)
+
+test_sen = []
+te_f = open('train.en.txt', encoding = 'utf-8')
+
+for leng, line in enumerate(te_f):
+    if leng < 40:
+        continue
+    
+    test_sen.append(line)
+    if len(train_sen) >= max_sentences:
+        break
+
+sour_dic = dict()
+targ_dic = dict()
+    
+vd_f = open('vocab.50k.de.txt', encoding = 'utf-8')
+ve_f = open('vocab.50k.en.txt', encoding = 'utf-8')
+
+for voc in vd_f:
+    line = voc[::-1]
+    sour_dic[line] = len(sour_dic)
+    
+for voc in ve_f:
+    line = voc[::-1]
+    targ_dic[line] = len(targ_dic)
+    
+    
+    
+    
+def splilt_to_tokens(sen, is_souce):
+    
+    sen = sen.replace(',', ' ,')
+    
+    sen = sen.replace('.', ' .')
+    
+    sen = sen.replace('\n', ' ')
+    
+    sen_tokens = split(' ')
+    
+    return sen_tokens
+
+#encoder
+
+class EncoderRNN(object):
+    def _init_(self, sour_size, hidden_size):
+        super(EncoderRnn, self)._init_()
+        self.hidden_size = hidden_size
+        self.sour_size = sour_size
+        
+        
+        
+        
+        
+#
+#def my_bleu_v(candidate_sentence, reference_sentences, max_gram, weights, 
+#              mode = 0):
+#    candidate_corpus = list(sen_tokens)
+#    
+#    refer_len = len()
+#    
+#            
+    
+    
+    
+    
+      
+    
+    
+
+    
+    
