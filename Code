@@ -57,10 +57,9 @@ for voc in ve_f:
     line = voc[::-1]
     targ_dic[line] = len(targ_dic)
     
-    
-    
-    
-def splilt_to_tokens(sen, is_souce):
+
+
+def split_to_tokens(sen, is_souce, eos = False):
     
     sen = sen.replace(',', ' ,')
     
@@ -68,9 +67,40 @@ def splilt_to_tokens(sen, is_souce):
     
     sen = sen.replace('\n', ' ')
     
-    sen_tokens = split(' ')
+    sen_tokens = sen.split(' ')
     
     return sen_tokens
+
+    for n_i, tok in enumerate(sen_tokens):
+        if tok not in sour_dic.keys():
+            sen_tokens[n_i] = "<UNK>"
+        elif tok not in targ_dic.keys():
+            sen_tokens[n_i] = "<UNK>"
+    if eos:
+        sen_tokens.append("<EOS>")
+        return sen_tokens
+
+   
+#Output——the special value of source dictionary and target dictionary     
+sour_len = []
+sour_mean = 0
+sour_std = 0
+for sen in sour_dic:
+    sour_len.append(len(split_to_tokens(sen,True)))
+
+
+print('The mean length of sentence in source dictionary: ', np.mean(sour_len))
+print('The standard lenth of sentence in source dictionary: ', np.std(sour_len))
+
+targ_len = []
+targ_mean = 0
+targ_std = 0
+for sen in targ_dic:
+    targ_len.append(len(split_to_tokens(sen,False)))
+
+print('The mean length of sentence in target dictionary: ', np.mean(targ_len))
+print('The standard lenth of sentence in target dictionary: ', np.std(targ_len))
+
 
 #encoder
 
