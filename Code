@@ -5,115 +5,385 @@ Created on Sun Dec  9 15:59:32 2018
 @author: ygton
 """
  
+
+
 import tensorflow as tf
+
 import tensorflow.contrib.seq2seq as seq2seq
+
 from tensorflow.python.layers.core import Dense
+
 import numpy as np
+
 import os
+
 import csv
+
 import re
 
+
+
 max_length = 40
+
 max_sentences = 1500
 
 train_sen = []
 
-
 #Open train file and test file, extracting parts of them to value
+
 tr_f = open('train.de.txt', encoding = 'utf-8')
+
+
 
 for leng, line in enumerate(tr_f):
     if leng < 40:
         continue
-    
+
     train_sen.append(line)
     if len(train_sen) >= max_sentences:
         break
-    
+
 print(train_sen)
 
 test_sen = []
+
 te_f = open('train.en.txt', encoding = 'utf-8')
+
 
 for leng, line in enumerate(te_f):
     if leng < 40:
         continue
-    
+
     test_sen.append(line)
     if len(train_sen) >= max_sentences:
+
         break
 
+
+
 sour_dic = dict()
+
 targ_dic = dict()
-    
+
+
 vd_f = open('vocab.50k.de.txt', encoding = 'utf-8')
+
 ve_f = open('vocab.50k.en.txt', encoding = 'utf-8')
 
+
+
 for voc in vd_f:
+    
     line = voc[::-1]
     sour_dic[line] = len(sour_dic)
-    
+
 for voc in ve_f:
+
     line = voc[::-1]
     targ_dic[line] = len(targ_dic)
-    
-
 
 def split_to_tokens(sen, is_souce, eos = False):
-    
+
     sen = sen.replace(',', ' ,')
-    
+
     sen = sen.replace('.', ' .')
-    
+
     sen = sen.replace('\n', ' ')
     
     sen_tokens = sen.split(' ')
-    
+
     return sen_tokens
+
 
     for n_i, tok in enumerate(sen_tokens):
         if tok not in sour_dic.keys():
             sen_tokens[n_i] = "<UNK>"
+            
         elif tok not in targ_dic.keys():
             sen_tokens[n_i] = "<UNK>"
-    if eos:
-        sen_tokens.append("<EOS>")
-        return sen_tokens
+
+        if eos:
+            sen_tokens.append("<EOS>")
+    return sen_tokens
+
+
 
    
-#Output——the special value of source dictionary and target dictionary     
-sour_len = []
-sour_mean = 0
-sour_std = 0
-for sen in sour_dic:
-    sour_len.append(len(split_to_tokens(sen,True)))
 
+#Output——the special value of source dictionary and target dictionary     
+
+sour_len = []
+
+sour_mean = 0
+
+sour_std = 0
+
+for sen in train_sen:
+
+    sour_len.append(len(split_to_tokens(sen,True)))
 
 print('The mean length of sentence in source dictionary: ', np.mean(sour_len))
 print('The standard lenth of sentence in source dictionary: ', np.std(sour_len))
 
 targ_len = []
+
 targ_mean = 0
+
 targ_std = 0
-for sen in targ_dic:
+
+for sen in test_sen:
+
     targ_len.append(len(split_to_tokens(sen,False)))
 
+
+
 print('The mean length of sentence in target dictionary: ', np.mean(targ_len))
+
 print('The standard lenth of sentence in target dictionary: ', np.std(targ_len))
 
 
 #encoder
 
-class EncoderRNN(object):
-    def _init_(self, sour_size, hidden_size):
-        super(EncoderRnn, self)._init_()
-        self.hidden_size = hidden_size
-        self.sour_size = sour_size
+train_input = []
+train_output = []
+max_length = 0
+num_sour_sen = []
+num_targ_sen = []
+sour_max_sen_length = 41
+targ_max_sen_length = 61
+train_inp_lengths = []
+train_out_lengths = []
+    
+for i, (sour_dic, targ_dic) in enumerate(zip(sour_dic, targ_dic)):
+    
+    sour_sen_tokens = split_to_tokens(sour_dic, True)
+    targ_sen_tokens = split_to_tokens(targ_dic, False)
+    
+    for tok in sour_sen_tokens:
+        num_sour_sen.append(train_sen[tok])
         
+    num_sour_sen.insert(0,sour_dict['<s>'])
+    train_inp_lengths.append(min(len(num_sour_sen)+1, sour_max_sen_length))
+    
+    if len(num_sour_sen)<sour_max_sen_length:
+        num_sour_sen.extend([sour_dict['</s>'] for _ in range(sour_max_sen_length - len(num_sour_sen))])
+    elif len(num_sour_sen) > sour_max_sen_length:
+        num_sour_sen = num_sour_sen[:sour_max_sen_length]
         
+    train_input.append(num_sour_sen)
+    
+    num_targ_sen = [targ_dict['</s>']]
+    for tok in targ_sen_tokens:
+        num_targ_sen.append(test_sen[tok])
         
+    train_out_lengths.append(min(len(num_targ_sen)+1, targ_max_sen_length))
+    
+    if len(num_targ_sen)<targ_max_sen_length:
+        num_targ_sen.extend([targ_dict['</s>'] for _ in range(targ_max_sen_length - len(num_targ_sen))])
+    elif len(num_targ_sen) > targ_max_sen_length:
+        num_targ_sen = num_targ_sen[:targ_max_sen_length]
         
+    train_output.append(num_targ_sen)
+    
+train_input = np.array(train_input, dtype = np.int32)
+train_output = np.array(train_output, dtype = np.int32)
+train_inp_lengths = np.array(train_inp_lengths, dtype=np.int32)
+train_out_lengths = np.array(trian_out_lengths, dtype=np.int32)
+print('\tSentences ',train_input.shape[0])
+
         
+#
+batch_size = 32
+input_size = 128
+class DataGeneratorMT(object):
+    
+    def _init_(self, batch_size, num_unroll, is_source = True):
+        self._batch_size = batch_size
+        self._num_unroll = num_unroll
+        #for i, num in range(self._batch_size)
+            #num[i] = 0
+        self._cursor = [0 for offset in range(self._batch_size)]
+        self._sour_word_emd = np.load('de-embeddings.npy')
+        
+        self._targ_word_emd = np.load('en-embeddings.npy')
+        self._sent_ids = None
+        self._is_source = is_source
+        
+    def next_batch(self, batch_size, sen_ids, fake_data = False):
+        
+        if self._is_source:
+            max_sen_length = sour_max_sen_length
+        else:
+            max_sen_length = targ_max_sen_length
+        batch_labs_ind = []
+        
+        batch_data = np.zeros((self._batch_size),dtype = np.float32)
+        batch_labs = np.zeros((self._batch_size),dtype = np.float32)
+        
+        for b in range(self._batch_size):
+            
+            sen_id = sen_ids[b]
+            
+            if self._is_source:
+                
+                sen_text = train_input[sen_id]
+                
+                batch_data[b] = sen_text[self._cursor[b]]
+                
+                batch_labs[b] = sen_text[self.cursor[b]+1]
+                
+            else:
+                sen_text = train_output[sen_id]
+                
+                batch_data[b] = sen_text[self._cursor[b]]
+                
+                batch_labs[b] = sen_text[self._cursor[b]+1]
+                
+            self._cursor[b] = (self._cursor[b]+1)%(max_sen_length-1)
+            
+        return batch_data, batch_labs
+    
+    def unroll_batches(self,sen_ids):
+        
+        if sen_ids is not None:
+            
+            self._sen_ids = sen_ids
+            
+            self._cursor = [0 for _ in range(self._batch_size)]
+            
+        unroll_data = []
+        unroll_labs = []
+        inp_length = None
+        
+        for i in range(self._num_unroll):
+            
+            data, labs = self.next_batch(self._sen_ids, False)
+            
+            unroll_data.append(data)
+            
+            unroll_labs.append(labs)
+            
+            inp_length = train_inp_lengths[sen_ids]
+            
+        return unroll_data, unroll_labs, self._sen_ids, inp_length
+    
+    def reset_indices(self):
+        self._cursor = [0 for offset in range(self._batch_size)]
+        
+#Running test set to chech procedure       
+dg = DataGeneratorMT(batch_size=5, num_unroll=40, is_source= True)
+
+u_data, u_labs, _, _, = dg.unroll_batches([0,1,2,3,4])
+
+for _, lbl in zip(u_data, u_labs):
+    print([sour_reverse_dict[w] for w in lbl.tolist()])
+        
+#Prepare the transition of word embeddings
+    
+encoder_emb_layer = tf.convert_to_tensor(np.load('de-embeddings.npy'))
+decoder_emb_layer = tf.convert_to_tensor(np.load('en-embeddings.npy'))
+
+dec_inp_train = []
+enc_inp_train = []
+dec_labs_train = []
+dec_lab_masks = []
+#Defing a series of parameter
+enc_inp_train = tf.placeholder(tf.int32, shape = [batch_size], name = 'enc_train_input')
+dec_labs_train = tf.placeholder(tf.int32, shape = [batch_size], name = 'dec_labs_train')
+dec_lab_masks = tf.placeholder(tf.float32, shape = [batch_size], name = 'dec_lab_masks')
+    
+enc_inp_train = tf.placeholder(tf.int32, shape = [batch_size], name = 'enc_inp_train')
+
+
+encoder_emb_inp = [tf.nn.embedding_lookup(encoder_emb_layer, sour) for sour in enc_inp_train]
+encoder_emb_inp = tf.stack(encoder_emb_inp)
+
+decoder_emb_inp = [tf.nn.embedding_lookup(decoder_emb_layer,sour) for sour in dec_inp_train]
+decoder_emb_inp = tf.stack(decoder_emb_inp)
+
+
+enc_train_inp_lengths = tf.placeholder(tf.int32, shape=[batch_size],name='train_input_lengths')
+dec_train_inp_lengths = tf.placeholder(tf.int32, shape=[batch_size],name='train_output_lengths')
+        
+
+global_step = tf.Variable(0, trainable = False)
+inc_gstep = tf.assign(global_step, global_step + 1)
+learning_rate = tf.train.exponential_decay(0.01, global_step, decay_steps = 10, decay_rate = 0.9, staircase = True)
+#built encoder layer
+
+def encoding_layer(rnn_size, max_length, num_layers, rnn_input):
+    
+    for layer in range(num_layers):
+        
+        with tf.variable_scope('encoder_{}'.format(layer)):
+            #built forward RNN
+            cell_fw = tf.nn.rnn_cell.LSTMcell(num_units = rnn_size, initializer = tf.random_uniform_initializer(-0.1,0.1, seed = 2))
+            cell_fw = tf.nn.rnn_cell.DropoutWrapper(cell = cell_fw)
+            #built backward RNN
+            cell_bw = tf.nn.rnn_cell.LSTMCell(num_units=rnn_size, initializer = tf.random_uniform_initializer(-0.1, 0.1, seed = 2))
+            cell_bw = tf.nn.rnn_cell.DropoutWrapper(cell_bw)
+            # bulit bidirectional RNN
+            enc_output, enc_state = tf.nn.bidirectional_dynamic_rnn(cell_fw = cell_fw, cell_bw = cell_bw, inputs = rnn_input, sequence_length = enc_train_inp_lengths, dtype = tf.float32)
+            
+            #Join outputs
+            enc_output = tf.concat(enc_output, 2)
+            
+            return enc_output, enc_state
+            
+projection_layer = Dense(units = voc_size, use_bias = True)
+
+#Helper
+
+helper = tf.contrib.seq2seq.TrainingHelper(decoder_emb_inp, [targ_max_sen_length-1 for_ in range(batch_size], Time_major = True)      
+
+#built decoder layer
+decoder_cell = tf.nn.rnn_cell.BasicLSTMCell(num_units)
+if decoder_type == 'basic':
+    decoder = tf.contrib.seq2seq.BasicDecoder(
+            decoder_cell, helper, enc_state, output_layer = projection_layer)
+    
+elif decoder_type == 'attention':
+    decoder = tf.contrib.seq2seq.BahdanauAttention(
+            decoder_cell, helper, enc_state, output_layer = projection_layer)
+    
+#bulir logists
+
+train_logits, inference_logits = seq2seq_model(tf.reverse(input_data), [-1],
+                                               rnn_size, num_layers, batch_size,
+                                               max_length)
+
+train_logits = tf.identity(train_logits.rnn_output, 'logits')
+inference_logits = tf.identity(inference_logits.sample_id, name = 'prediction')
+
+with tf.Variable_scope("Adam"):
+    #compute cost
+    cost = tf.nn.sparse_softmax_cross_entropy_with_logits(labels = dec_labs_train, logits = train_logits)
+    
+    loss = (tf.reduce_sum(cost*tf.stack(dec_lab_masks)) / (batch_size*target_sequence_length))
+  
+    #define optimiazer
+    adam_optimizer = tf.rain_AdamOptimizer(learning_rate)
+    
+#compute gradients(adam)
+adam_gradients, v = zip(*adam_optimizer.compute_gradients(loss))
+adam_gradients, _ = tf.clip_by_global_norm(adam_gradients, 25.0)
+#2.capped_gradients = [(tf.clip_by_value(grad, -5., 5.), var) for grad, var in gradients if grad is not None]
+
+adam_optimize = adam_optimizer.apply_gradients(zip(adam_gradients, v))
+
+with tf.variable_scope('SGD'):
+    sgd_optimizer = tf.train_GradientDescentOpotimizer(learning_rate)
+#compute gradients(Sgd)   
+sgd_gradients, v = zip(*sgd_optimizer.compute_gradients(loss))
+sgd_gradients, _ = tf.clip_by_global_norm(sgd_gradients, 25.0)
+sgd_optimize = sgd_optimizer.apply_gradients(zip(sgd_gradients, v))
+
+sess = tf.InteractiveSession()
+    
+    
+
+    
+
 #
 #def my_bleu_v(candidate_sentence, reference_sentences, max_gram, weights, 
 #              mode = 0):
@@ -129,6 +399,7 @@ class EncoderRNN(object):
       
     
     
+
 
     
     
